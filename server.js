@@ -9,41 +9,43 @@ const app = express();
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// 2. NEW: Add a Root Route (Health Check)
-// This lets you click the Railway link and see if it works immediately.
+// 2. Health Check (Root URL)
 app.get('/', (req, res) => {
-    res.send("✅ Backend is running! You can now use the Chrome Extension.");
+    console.log("Health check pinger received!"); 
+    res.send("✅ Backend is successfully connected to the internet!");
 });
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 app.post('/generate-comments', async (req, res) => {
     try {
+        console.log("Received Request for comments...");
         const { postContent } = req.body;
-        if (!postContent) return res.status(400).json({ error: 'No text provided' });
-
-        console.log("Generating comment for length:", postContent.length);
-
+        
         const response = await openai.chat.completions.create({
-            model: "gpt-4o", 
+            model: "gpt-4o",
             messages: [
-                { role: "system", content: "You are a helpful LinkedIn assistant. Generate 3 short, professional comments." },
-                { role: "user", content: postContent }
+                { role: "system", content: "You are a LinkedIn assistant. Keep it professional." },
+                { role: "user", content: postContent || "Hello" }
             ],
             max_tokens: 100
         });
 
-        const suggestions = response.choices[0].message.content.split('\n').filter(l => l.length > 0);
-        res.json({ suggestions });
-
+        res.json({ suggestions: response.choices[0].message.content.split('\n') });
     } catch (error) {
         console.error("OpenAI Error:", error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// 3. CRITICAL: Bind to 0.0.0.0 and correct PORT
-const PORT = process.env.PORT || 8080; // Default to 8080 for Railway compatibility
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
+// 3. CRITICAL: FORCE HOST AND PORT
+// We hardcode 0.0.0.0 to ensure it listens on all interfaces, not just localhost
+const PORT = process.env.PORT || 8080;
+const HOST = '0.0.0.0'; 
+
+app.listen(PORT, HOST, () => {
+    console.log(`\n==================================================`);
+    console.log(`🚀 SERVER STARTED SUCCESSFULLY`);
+    console.log(`👂 Listening on: http://${HOST}:${PORT}`);
+    console.log(`==================================================\n`);
 });
