@@ -1,64 +1,49 @@
-// server.js
 const express = require('express');
 const cors = require('cors');
 const OpenAI = require('openai');
-require('dotenv').config(); // Loads .env file (if running locally)
+require('dotenv').config();
 
 const app = express();
 
-// --- CRITICAL FIX FOR "net::ERR_FAILED" ---
-// We allow requests from ANYWHERE ('*') for now.
-// Once you are 100% sure it works, you can lock this down later.
-app.use(cors({ origin: '*' })); 
-
+// 1. Allow All Origins
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// Initialize OpenAI with the key from Railway variables
-const openai = new OpenAI({ 
-    apiKey: process.env.OPENAI_API_KEY 
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// 2. NEW: Add a Root Route (Health Check)
+// This lets you click the Railway link and see if it works immediately.
+app.get('/', (req, res) => {
+    res.send("✅ Backend is running! You can now use the Chrome Extension.");
 });
 
-// The Route your extension calls
 app.post('/generate-comments', async (req, res) => {
     try {
         const { postContent } = req.body;
+        if (!postContent) return res.status(400).json({ error: 'No text provided' });
 
-        if (!postContent) {
-            return res.status(400).json({ error: 'Post content is required' });
-        }
-
-        console.log("Received request for post length:", postContent.length);
+        console.log("Generating comment for length:", postContent.length);
 
         const response = await openai.chat.completions.create({
-            model: "gpt-4o", // Or "gpt-3.5-turbo" if you want to save money
+            model: "gpt-4o", 
             messages: [
-                { 
-                    role: "system", 
-                    content: "You are a professional LinkedIn networking assistant. Read the user's LinkedIn post and generate 3 distinct, engaging, and professional comments that I could post as a reply. Keep them under 30 words each. Do not add numbering or quotes." 
-                },
+                { role: "system", content: "You are a helpful LinkedIn assistant. Generate 3 short, professional comments." },
                 { role: "user", content: postContent }
             ],
-            max_tokens: 150,
-            temperature: 0.7,
+            max_tokens: 100
         });
 
-        // Clean up the output (split by newlines and remove empty lines)
-        const suggestions = response.choices[0].message.content
-            .split('\n')
-            .filter(line => line.trim().length > 0)
-            .map(line => line.replace(/^-\s*/, '').replace(/^\d+\.\s*/, '')); // Remove bullets/numbers
-
+        const suggestions = response.choices[0].message.content.split('\n').filter(l => l.length > 0);
         res.json({ suggestions });
 
     } catch (error) {
         console.error("OpenAI Error:", error);
-        res.status(500).json({ error: 'Failed to generate comments', details: error.message });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Start the server
-// Railway automatically sets process.env.PORT, otherwise we use 3000
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+// 3. CRITICAL: Bind to 0.0.0.0 and correct PORT
+const PORT = process.env.PORT || 8080; // Default to 8080 for Railway compatibility
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });
