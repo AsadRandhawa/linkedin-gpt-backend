@@ -1,7 +1,9 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "fetchSuggestions") {
-        // REPLACE WITH YOUR ACTUAL RAILWAY URL
-        const API_URL = "linkedin-gpt-backend-production.up.railway.app";
+        console.log("Background: Sending text to Railway...");
+
+        // DOUBLE CHECK THIS URL!
+        const API_URL = "https://linkedin-gpt-backend-production.up.railway.app/"; 
 
         fetch(API_URL, {
             method: "POST",
@@ -9,9 +11,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             body: JSON.stringify({ postContent: request.postContent })
         })
         .then(response => response.json())
-        .then(data => sendResponse({ success: true, data }))
-        .catch(error => sendResponse({ success: false, error: error.message }));
+        .then(data => {
+            console.log("Background: Received data:", data);
+            sendResponse({ success: true, data });
+        })
+        .catch(error => {
+            console.error("Background: Fetch Error:", error);
+            sendResponse({ success: false, error: error.message });
+        });
 
-        return true; // Keep the message channel open for async response
+        return true; // <--- THIS IS CRITICAL. DO NOT DELETE.
     }
 });

@@ -1,8 +1,8 @@
-console.log("LinkedIn GPT Extension: v3 Loaded");
+console.log("LinkedIn GPT Extension: v4 Loaded (Safe Mode)");
 
-// --- HELPER: Read Post Text ---
+// --- HELPER 1: Read Post Text ---
 function getPostText(commentBox) {
-    // Strategy 1: Look for the nearest specific post container (Feed or Modal)
+    // Strategy 1: Look for the nearest specific post container
     let container = commentBox.closest('.feed-shared-update-v2, .artdeco-modal, .occludable-update');
     
     // Strategy 2: If not found, look for any parent with a 'data-urn' (LinkedIn's internal ID)
@@ -15,21 +15,21 @@ function getPostText(commentBox) {
         const textElement = container.querySelector('.update-components-text, .feed-shared-update-v2__description-wrapper, .feed-shared-text-view, .break-words');
         if (textElement) return textElement.innerText;
         
-        // If specific text class missing, try the container's raw text (cleaned up)
-        return container.innerText.split('\n').slice(0, 5).join('\n'); // First 5 lines
+        // Fallback: Grab the first few lines of the container text
+        return container.innerText.split('\n').slice(0, 5).join('\n');
     }
 
     return null;
 }
 
-// --- HELPER: Insert Text into LinkedIn Editor ---
+// --- HELPER 2: Insert Text into LinkedIn Editor ---
 function insertReply(commentBox, text) {
     commentBox.focus();
     
-    // Method 1: The Standard "User Typing" Simulation (Best for React/Quill)
+    // Method 1: Standard "User Typing" Simulation (Best for React/Quill editors)
     const success = document.execCommand('insertText', false, text);
     
-    // Method 2: Clipboard Fallback (If Method 1 is blocked by CSP)
+    // Method 2: Clipboard Fallback (If Method 1 fails)
     if (!success) {
         navigator.clipboard.writeText(text).then(() => {
             alert("✨ Suggestion copied to clipboard! (Paste it manually)");
@@ -65,11 +65,26 @@ function injectButton(commentBox) {
         
         chrome.runtime.sendMessage({ action: "fetchSuggestions", postContent: postText }, (response) => {
             btn.innerText = "✨ AI Reply";
+
+            // CHECK 1: Did the message fail to send?
+            if (chrome.runtime.lastError) {
+                alert("Connection error. Please refresh the page.");
+                return;
+            }
+
+            // CHECK 2: Did the server return success?
             if (response && response.success) {
-                // We assume the first suggestion is the best one
-                insertReply(commentBox, response.data.suggestions[0]);
+                // CHECK 3: Do we actually have suggestions? (Fixes the 'undefined' error)
+                if (response.data && response.data.suggestions && response.data.suggestions.length > 0) {
+                    insertReply(commentBox, response.data.suggestions[0]);
+                } else {
+                    console.error("Empty suggestions received:", response);
+                    alert("The AI replied, but the suggestion list was empty. Try a longer post.");
+                }
             } else {
-                alert("Error: " + (response ? response.error : "Check Backend"));
+                // Handle Server Errors
+                const errorMsg = response ? response.error : "Unknown Error";
+                alert("Error: " + errorMsg);
             }
         });
     });
