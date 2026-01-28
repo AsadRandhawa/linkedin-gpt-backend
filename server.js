@@ -1,57 +1,55 @@
-// FORCE UPDATE: V5 - Debugging Empty List
+// LinkedIn GPT Backend - Stable Version
 const express = require('express');
 const cors = require('cors');
-const OpenAI = require('openai');
+const OpenAI = require('openai').default;
 require('dotenv').config();
 
 const app = express();
 
-// 1. Allow All Origins (Fixes connection errors)
+// Middleware
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// 2. Health Check (Root URL)
-// Visiting your Railway URL in a browser will show this message.
+// Health Check
 app.get('/', (req, res) => {
-    console.log("Health check pinger received!");
-    res.send("✅ Backend is successfully connected to the internet!");
+    console.log("Health check received");
+    res.send("✅ Backend is running!");
 });
 
-// 3. Setup OpenAI with validation
-if (!process.env.OPENAI_API_KEY) {
-    console.error("❌ CRITICAL ERROR: OPENAI_API_KEY environment variable is not set!");
-    console.error("Please set it in Railway dashboard under Variables tab");
+// Initialize OpenAI
+let openai;
+try {
+    if (!process.env.OPENAI_API_KEY) {
+        console.error("❌ OPENAI_API_KEY not set!");
+    } else {
+        openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        console.log("✅ OpenAI initialized");
+    }
+} catch (error) {
+    console.error("Error initializing OpenAI:", error.message);
 }
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-health-check'
-});
-
-// 4. Main Generation Route
+// Generate Comments Endpoint
 app.post('/generate-comments', async (req, res) => {
     try {
         const { postContent } = req.body;
-        console.log("\n--- NEW REQUEST ---");
-        console.log("Post Length:", postContent ? postContent.length : 0);
 
         if (!postContent) {
             return res.status(400).json({ error: "No post content provided" });
         }
 
-        // Check if API key is set
-        if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'dummy-key-for-health-check') {
-            console.error("API key not configured!");
-            return res.status(500).json({
-                error: "Server configuration error: OpenAI API key not set. Please contact administrator."
-            });
+        if (!openai) {
+            return res.status(500).json({ error: "OpenAI not configured" });
         }
+
+        console.log("Generating comments for post:", postContent.substring(0, 50) + "...");
 
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
                 {
                     role: "system",
-                    content: "You are a LinkedIn assistant. Generate exactly 3 distinct, professional comment suggestions. Format each suggestion on a new line starting with '1.', '2.', and '3.'. Keep each comment concise (1-2 sentences)."
+                    content: "You are a LinkedIn assistant. Generate exactly 3 distinct, professional comment suggestions. Format each on a new line starting with '1.', '2.', and '3.'. Keep each comment concise (1-2 sentences)."
                 },
                 { role: "user", content: `Generate 3 professional comment suggestions for this LinkedIn post:\n\n${postContent}` }
             ],
@@ -59,64 +57,56 @@ app.post('/generate-comments', async (req, res) => {
             temperature: 0.8
         });
 
-        // DEBUG: See exactly what AI returned in Railway Logs
         const rawText = response.choices[0].message.content;
-        console.log("OpenAI Raw Output:", rawText);
+        console.log("OpenAI response:", rawText);
 
-        // Improved Parsing Logic
+        // Parse suggestions
         let suggestions = [];
 
-        // Try to split by numbered format (1. 2. 3.)
+        // Try numbered format
         const numberedMatches = rawText.match(/\d+\.\s*(.+?)(?=\d+\.|$)/gs);
         if (numberedMatches && numberedMatches.length >= 3) {
             suggestions = numberedMatches
                 .slice(0, 3)
                 .map(match => match.replace(/^\d+\.\s*/, '').trim());
         } else {
-            // Fallback: Split by double newline or single newline
+            // Fallback: split by newlines
             suggestions = rawText
                 .split(/\n\n|\n/)
                 .map(line => line.trim())
-                .filter(line => line.length > 10) // Filter out very short lines
+                .filter(line => line.length > 10)
                 .map(line => line.replace(/^[-•*]\s*/, '').replace(/^\d+\.\s*/, ''))
-                .slice(0, 3); // Take first 3
+                .slice(0, 3);
         }
 
-        // FINAL FALLBACK: If still empty, create generic suggestions
-        if (suggestions.length === 0) {
-            suggestions = [
-                "Great insights! Thanks for sharing this perspective.",
-                "This is really valuable information. Looking forward to seeing more content like this!",
-                "Interesting points! I'd love to hear more about your experience with this."
-            ];
-            console.log("WARNING: Using fallback suggestions");
-        }
+        // Ensure 3 suggestions
+        const fallbackSuggestions = [
+            "Great insights! Thanks for sharing this perspective.",
+            "This is really valuable information. Looking forward to more!",
+            "Interesting points! I'd love to hear more about your experience."
+        ];
 
-        // Ensure we always have exactly 3 suggestions
         while (suggestions.length < 3) {
-            suggestions.push("Thanks for sharing! This is really insightful.");
+            suggestions.push(fallbackSuggestions[suggestions.length]);
         }
         suggestions = suggestions.slice(0, 3);
 
-        console.log("Final Suggestions Count:", suggestions.length);
-        console.log("Suggestions:", suggestions);
-
+        console.log("Final suggestions:", suggestions);
         res.json({ suggestions });
 
     } catch (error) {
-        console.error("OpenAI Error:", error);
+        console.error("Error:", error.message);
         res.status(500).json({ error: error.message });
     }
 });
 
-// 5. CRITICAL: FORCE HOST AND PORT
-// We hardcode 0.0.0.0 to ensure it listens on all interfaces, not just localhost
+// Start server
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
 
 app.listen(PORT, HOST, () => {
-    console.log(`\n==================================================`);
+    console.log(`\n${'='.repeat(50)}`);
     console.log(`🚀 SERVER STARTED SUCCESSFULLY`);
     console.log(`👂 Listening on: http://${HOST}:${PORT}`);
-    console.log(`==================================================\n`);
+    console.log(`${'='.repeat(50)}\n`);
 });
