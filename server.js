@@ -17,8 +17,15 @@ app.get('/', (req, res) => {
     res.send("✅ Backend is successfully connected to the internet!");
 });
 
-// 3. Setup OpenAI
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// 3. Setup OpenAI with validation
+if (!process.env.OPENAI_API_KEY) {
+    console.error("❌ CRITICAL ERROR: OPENAI_API_KEY environment variable is not set!");
+    console.error("Please set it in Railway dashboard under Variables tab");
+}
+
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-health-check'
+});
 
 // 4. Main Generation Route
 app.post('/generate-comments', async (req, res) => {
@@ -29,6 +36,14 @@ app.post('/generate-comments', async (req, res) => {
 
         if (!postContent) {
             return res.status(400).json({ error: "No post content provided" });
+        }
+
+        // Check if API key is set
+        if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'dummy-key-for-health-check') {
+            console.error("API key not configured!");
+            return res.status(500).json({
+                error: "Server configuration error: OpenAI API key not set. Please contact administrator."
+            });
         }
 
         const response = await openai.chat.completions.create({
