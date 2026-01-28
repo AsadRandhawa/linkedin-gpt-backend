@@ -2,15 +2,25 @@
   "manifest_version": 3,
   "name": "LinkedIn GPT Suggester",
   "version": "1.0",
-  "permissions": ["activeTab", "scripting"],
-  "host_permissions": ["https://*.railway.app/*"],
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.railway.app/*",
+    "http://localhost:*/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://www.linkedin.com/*"],
-      "js": ["content.js"]
+      "matches": [
+        "https://www.linkedin.com/*"
+      ],
+      "js": [
+        "content.js"
+      ]
     }
   ]
 }
