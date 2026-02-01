@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "LinkedIn GPT Comment Suggester",
-  "version": "1.0.0",
-  "description": "AI-powered comment suggestions for LinkedIn posts. Get 3 professional comment options instantly with GPT-4.",
+  "version": "1.0.1",
+  "description": "AI-powered comment suggestions for LinkedIn posts. Get 3 professional comment options instantly.",
   "author": "Your Name",
   "icons": {
     "16": "icons/icon16.png",
@@ -10,11 +10,10 @@
     "128": "icons/icon128.png"
   },
   "permissions": [
-    "scripting"
+    "storage"
   ],
   "host_permissions": [
-    "https://*.railway.app/*",
-    "http://localhost:*/*"
+    "https://*.railway.app/*"
   ],
   "background": {
     "service_worker": "background.js"
