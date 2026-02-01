@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LinkedIn GPT Comment Suggester",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "AI-powered comment suggestions for LinkedIn posts. Get 3 professional comment options instantly.",
   "author": "Your Name",
   "icons": {
@@ -9,9 +9,7 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": [
-    "storage"
-  ],
+  "permissions": [],
   "host_permissions": [
     "https://*.railway.app/*"
   ],
@@ -29,7 +27,6 @@
     }
   ],
   "action": {
-    "default_title": "LinkedIn GPT Comment Suggester",
-    "default_popup": "popup.html"
+    "default_title": "LinkedIn GPT Comment Suggester"
   }
 }
